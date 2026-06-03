@@ -1,0 +1,1816 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>POE2 阿兹里神庙模拟器 v7</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #08070a;
+      --bg-grid: #0a0a0c;
+      --bg: #0d0c0e;
+      --stone-dark: #2a2520;
+      --stone-mid: #3a3530;
+      --stone-light: #4a4138;
+      --panel: #181513;
+      --panel-2: #1f1b17;
+      --line: #4a3f30;
+      --text: #e8d8b0;
+      --muted: #8b7a5a;
+      --gold: #c8a165;
+      --gold-bronze: #b08940;
+      --gold-bright: #e8c485;
+      --gold-glow: #f5d892;
+      --red: #cb6358;
+      --red-active: #8b2020;
+      --red-blood: #a52a2a;
+      --green: #9bd13a;
+      --green-place: rgba(155, 209, 58, 0.35);
+      --green-tier: rgba(180, 230, 80, 0.55);
+      --blue: #84a9d8;
+      --affix-blue: #8888ff;
+      --purple: #b990d8;
+      --amber: #d28d51;
+      --shadow: 0 14px 40px rgba(0, 0, 0, .6);
+      --map-image: url("assets/temple-reference.jpeg");
+      --temple-cells: 9;
+      --temple-cell: 57px;
+      --temple-gap: 12px;
+      --temple-border: 3px;
+      --temple-grid-size: calc(var(--temple-cells) * var(--temple-cell) + (var(--temple-cells) - 1) * var(--temple-gap) + 2 * var(--temple-border));
+      font-family: "Cinzel", "Microsoft YaHei", "Trajan Pro", "Segoe UI", system-ui, serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at center, rgba(40, 30, 20, .4), transparent 60%),
+        radial-gradient(circle at 80% 0%, rgba(176, 137, 64, .06), transparent 28%),
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0 0.06  0 0 0 0.22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+        var(--bg-deep);
+      color: var(--text);
+      letter-spacing: 0.5px;
+    }
+
+    button, input, select { font: inherit; }
+    button {
+      border: 1px solid var(--gold-bronze);
+      background: linear-gradient(to bottom, #3a2c18, #1f1810);
+      color: var(--gold-bright);
+      border-radius: 4px;
+      padding: 8px 11px;
+      cursor: pointer;
+      text-transform: none;
+      letter-spacing: 1px;
+      box-shadow: inset 0 1px 0 rgba(232, 196, 133, 0.15), 0 1px 2px rgba(0, 0, 0, 0.6);
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+      font-weight: 500;
+    }
+    button:hover {
+      border-color: var(--gold-glow);
+      color: var(--gold-glow);
+      box-shadow: inset 0 1px 0 rgba(245, 216, 146, 0.25), 0 0 8px rgba(176, 137, 64, 0.4);
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .primary {
+      background: linear-gradient(to bottom, #6a4a20, #3a2810);
+      border-color: var(--gold-bright);
+      color: #f0c870;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 340px minmax(680px, 1fr) 360px;
+      gap: 18px;
+      padding: 18px;
+      max-width: 1740px;
+      margin: 0 auto;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      padding: 6px 0 2px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      color: var(--gold-bright);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-shadow: 0 1px 2px #000, 0 0 12px rgba(176, 137, 64, 0.3);
+      font-weight: 700;
+    }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--gold-bright);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border-bottom: 1px solid var(--gold-bronze);
+      padding-bottom: 4px;
+    }
+    h3 { margin: 0 0 8px; font-size: 14px; color: var(--text); }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 6px;
+      max-width: 920px;
+      line-height: 1.5;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .panel {
+      background:
+        linear-gradient(to bottom, rgba(58, 47, 36, 0.15), transparent 30%),
+        var(--panel);
+      border: 1px solid var(--gold-bronze);
+      border-radius: 4px;
+      box-shadow: var(--shadow), inset 0 0 40px rgba(0, 0, 0, 0.5);
+      padding: 14px;
+    }
+
+    .controls { display: grid; gap: 10px; align-content: start; }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      background: #0a0908;
+      color: var(--text);
+      border: 1px solid var(--gold-bronze);
+      border-radius: 3px;
+      padding: 6px 7px;
+      outline: none;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+    }
+    select:focus, input:focus { border-color: var(--gold-bright); box-shadow: 0 0 6px rgba(176, 137, 64, 0.4); }
+
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { flex: 1; }
+
+    .switches {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--gold-bronze);
+      border-radius: 3px;
+      color: var(--gold-bright);
+      background: rgba(10, 9, 8, 0.7);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .toggle input { accent-color: var(--gold-bronze); }
+    .goal-desc {
+      font-size: 10px;
+      color: var(--muted);
+      padding: 6px 0;
+      line-height: 1.4;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .milestone-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-size: 11px; }
+    .milestone-row .done { color: var(--green); }
+    .milestone-row .pending { color: var(--muted); }
+
+    /* 顶级双视图 tabs */
+    .view-tabs {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--gold-bronze);
+      margin-bottom: 4px;
+    }
+    .view-tab {
+      background: linear-gradient(to bottom, #2a2418, #181210);
+      border: 1px solid var(--gold-bronze);
+      border-bottom: none;
+      color: var(--muted);
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+      font-size: 12px;
+      letter-spacing: 1px;
+      border-radius: 4px 4px 0 0;
+      margin-right: 4px;
+    }
+    .view-tab:hover { color: var(--gold-bright); }
+    .view-tab.active {
+      background: linear-gradient(to bottom, #4a3a20, #2a2010);
+      color: var(--gold-glow);
+      border-bottom: 1px solid #0d0c0e;
+      margin-bottom: -1px;
+      z-index: 2;
+    }
+    /* 双视图布局:左侧栏 + 中央 grid + 指标始终显示,右侧 aside 按 tab 切。
+       关键:每个顶级面板写死 grid-column + grid-row,防止 display:none 时 grid auto-flow 让其他面板顶上来。 */
+    .layout { grid-auto-rows: min-content; }
+    .layout > header                              { grid-column: 1 / -1; grid-row: 1; }
+    .layout > nav.view-tabs                       { grid-column: 1 / -1; grid-row: 2; }
+    .layout > .panel.controls                     { grid-column: 1; grid-row: 3; }
+    .layout > .panel.loop-inventory               { grid-column: 1; grid-row: 4; }
+    .layout > .panel.temple-wrap                  { grid-column: 2; grid-row: 3; }
+    .layout > aside.side                          { grid-column: 3; grid-row: 3; }
+
+    /* 三视图切换:左 controls + 右 aside 内部 section 按 data-view 显示.
+       中间棋盘 + metrics 三个 tab 都显示(玩家在哪个视图下都看得到神庙)。 */
+    /* 默认:combat 视图(无 data-active-view 也按 combat) */
+    aside.side > section[data-view],
+    section.panel.controls > section[data-view],
+    section.panel.controls > div[data-view] { display: none; }
+    aside.side > section[data-view="combat"],
+    section.panel.controls > section[data-view="combat"],
+    section.panel.controls > div[data-view="combat"] { display: block; }
+
+    /* 战前预演 */
+    body[data-active-view="premortem"] aside.side > section[data-view="combat"],
+    body[data-active-view="premortem"] section.panel.controls > section[data-view="combat"],
+    body[data-active-view="premortem"] section.panel.controls > div[data-view="combat"] { display: none; }
+    body[data-active-view="premortem"] aside.side > section[data-view="premortem"],
+    body[data-active-view="premortem"] section.panel.controls > section[data-view="premortem"],
+    body[data-active-view="premortem"] section.panel.controls > div[data-view="premortem"] { display: block; }
+
+    /* 开服校准 */
+    body[data-active-view="calibration"] aside.side > section[data-view="combat"],
+    body[data-active-view="calibration"] section.panel.controls > section[data-view="combat"],
+    body[data-active-view="calibration"] section.panel.controls > div[data-view="combat"] { display: none; }
+    body[data-active-view="calibration"] aside.side > section[data-view="calibration"],
+    body[data-active-view="calibration"] section.panel.controls > section[data-view="calibration"],
+    body[data-active-view="calibration"] section.panel.controls > div[data-view="calibration"] { display: block; }
+
+    /* 循环助手道具栏 — 顶级 .layout 子节点,仅 combat 视图显示 */
+    .layout > section.loop-inventory[data-view="combat"] { display: block; }
+    body[data-active-view="premortem"] .layout > section.loop-inventory[data-view="combat"],
+    body[data-active-view="calibration"] .layout > section.loop-inventory[data-view="combat"] { display: none; }
+
+    /* ===== 循环助手三列布局(仅 combat 视图)=====
+       道具(loop-inventory) | 格子(temple-wrap+metrics) | 清单(loop-checklist)。
+       严格 scope 到 body[data-active-view="combat"];premortem / calibration 完全不受影响。
+       默认无 data-active-view 也按 combat(init 会立刻设成 combat)。 */
+    /* 1. 隐藏旧左栏摆盘工具(.controls)— 整块,含旧 combat 手牌/事件/纹章按钮,改由道具栏+清单替代 */
+    body:not([data-active-view="premortem"]):not([data-active-view="calibration"]) .layout > .panel.controls { display: none; }
+    /* 2. 道具栏顶到左列(controls 隐藏后空出的 col1/row3),与中间格子顶部对齐 */
+    body:not([data-active-view="premortem"]):not([data-active-view="calibration"]) .layout > .panel.loop-inventory[data-view="combat"] {
+      grid-column: 1; grid-row: 3; align-self: start;
+    }
+    /* 3. 隐藏右栏里旧的重叠信息面板(路线风险 / 抢修 / 规则摘要+JSON);仅保留循环助手清单 */
+    body:not([data-active-view="premortem"]):not([data-active-view="calibration"]) aside.side > section.panel[data-view="combat"]:not(.loop-checklist) { display: none; }
+    /* 4. 显式保留循环助手清单(右列) */
+    body:not([data-active-view="premortem"]):not([data-active-view="calibration"]) aside.side > section.panel.loop-checklist[data-view="combat"] { display: block; }
+
+    /* shared sections — 始终显示(放卡 / 手牌 / 事件 / 重置 三视图都需要) */
+    aside.side > section[data-view="shared"],
+    section.panel.controls > section[data-view="shared"],
+    section.panel.controls > div[data-view="shared"] { display: block; }
+
+    .lab-results-panel { min-height: 400px; }
+    .lab-results-panel .log { max-height: 700px; overflow-y: auto; }
+
+    /* 实战页顶部 "一句话下一步" 条 */
+    .nextstep-bar {
+      background: linear-gradient(135deg, rgba(106, 74, 32, 0.7), rgba(58, 40, 16, 0.85));
+      border: 1px solid var(--gold-bright);
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      color: var(--gold-glow);
+      font-size: 13px;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+      letter-spacing: 0.5px;
+      box-shadow: inset 0 1px 0 rgba(245, 216, 146, 0.2), 0 0 12px rgba(176, 137, 64, 0.3);
+    }
+    .nextstep-bar b { color: var(--gold-bright); font-size: 14px; }
+    .repair-panel {
+      display: grid;
+      gap: 8px;
+    }
+    .repair-head {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .repair-stat {
+      border: 1px solid rgba(176, 137, 64, 0.45);
+      border-radius: 3px;
+      padding: 7px;
+      background: rgba(10, 9, 8, 0.55);
+      min-height: 54px;
+    }
+    .repair-stat b {
+      display: block;
+      color: var(--gold-glow);
+      font-size: 17px;
+      line-height: 1.1;
+    }
+    .repair-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      margin-top: 3px;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+    .repair-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+    .repair-table th,
+    .repair-table td {
+      border-bottom: 1px solid rgba(176, 137, 64, 0.24);
+      padding: 5px 4px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .repair-table th {
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .repair-tag {
+      display: inline-block;
+      border: 1px solid rgba(176, 137, 64, 0.55);
+      border-radius: 3px;
+      padding: 1px 5px;
+      color: var(--gold-bright);
+      background: rgba(58, 40, 16, 0.7);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    /* 顶级 view tab 自身始终显示 */
+    .view-tabs { display: flex; }
+
+    .temple-wrap {
+      min-height: 760px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: 6px;
+    }
+    @media (max-width: 1600px) {
+      .metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    }
+    @media (max-width: 900px) {
+      .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    .metric {
+      background: linear-gradient(to bottom, var(--panel-2), var(--panel));
+      border: 1px solid var(--gold-bronze);
+      border-radius: 3px;
+      padding: 9px;
+      min-height: 58px;
+      box-shadow: inset 0 1px 0 rgba(232, 196, 133, 0.12), inset 0 0 20px rgba(0, 0, 0, 0.4);
+    }
+    .metric b {
+      display: block;
+      font-size: 20px;
+      color: var(--gold-glow);
+      line-height: 1.1;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+      font-weight: 700;
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+    }
+    .metric span {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ===== v10 真菱形棋盘(transform rotate 45) ===== */
+    .temple-board {
+      position: relative;
+      width: min(860px, 100%);
+      height: 860px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* wrap 跟 grid 一起 rotate,让 foyer/atziri anchor 可贴在 grid cell 旁边 */
+    .temple-grid-wrap {
+      position: relative;
+      width: var(--temple-grid-size);
+      height: var(--temple-grid-size);
+      transform: rotate(45deg);
+      transform-origin: center;
+    }
+    /* 边缘道路连线 overlay：填满 .temple-grid，叠在格子上方，不拦截鼠标 */
+    #loop-conn-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      width: 100%;
+      height: 100%;
+    }
+    .temple-grid {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(var(--temple-cells), var(--temple-cell));
+      grid-template-rows: repeat(var(--temple-cells), var(--temple-cell));
+      gap: var(--temple-gap);
+      border: var(--temple-border) solid rgba(176, 137, 64, 0.42);
+      background:
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.06  0 0 0 0 0.04  0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+        var(--bg-grid);
+      box-shadow:
+        inset 0 0 90px rgba(0, 0, 0, 0.95),
+        inset 0 0 0 2px var(--gold-bronze),
+        inset 0 0 0 1px rgba(232, 196, 133, 0.18),
+        0 0 40px rgba(0, 0, 0, 0.85);
+    }
+    /* 4 边石框铆钉(grid 内壁) */
+    .temple-grid::before, .temple-grid::after {
+      content: '';
+      position: absolute;
+      pointer-events: none;
+      background-image: radial-gradient(circle, #5a4628 1.5px, transparent 2px);
+      background-size: 22px 22px;
+      background-repeat: repeat;
+      opacity: 0.65;
+    }
+    .temple-grid::before { top: -10px; left: 0; right: 0; height: 6px; background-position: 11px 0; }
+    .temple-grid::after { bottom: -10px; left: 0; right: 0; height: 6px; background-position: 11px 0; }
+    .tile {
+      background: rgba(6, 6, 6, 0.85);
+      border: 1px solid rgba(176, 137, 64, 0.08);
+      position: relative;
+      cursor: pointer;
+      padding: 0;
+      overflow: visible;
+      transition: background .12s, border-color .12s;
+      min-width: 0;
+      min-height: 0;
+    }
+    .tile:hover {
+      background: rgba(176, 137, 64, 0.18);
+      border-color: var(--gold-bright);
+      z-index: 4;
+      box-shadow: inset 0 0 8px rgba(245, 216, 146, 0.3);
+    }
+    .tile.reachable { background: rgba(40, 32, 20, 0.65); border-color: rgba(176, 137, 64, 0.28); }
+    .tile.chain { background: rgba(80, 56, 24, 0.55); border-color: rgba(232, 196, 133, 0.5); }
+    .tile.named {
+      background: linear-gradient(135deg, var(--stone-mid), var(--stone-dark));
+      border: 1px solid var(--gold-bronze);
+      box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(232, 196, 133, 0.1);
+    }
+    .tile.named.reachable { box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(232, 196, 133, 0.2), 0 0 6px rgba(176, 137, 64, 0.4); }
+    .tile.named.chain { box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(232, 196, 133, 0.5), 0 0 8px rgba(176, 137, 64, 0.5); }
+    .tile.named.architect {
+      background: radial-gradient(circle at 50% 30%, #7a5828, #44321a 70%, #1a1208 100%);
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 10px var(--gold-glow);
+    }
+    .tile.named.atziri {
+      background: radial-gradient(circle at 50% 30%, #8a2a30, #5a1f2a 70%, #1a0608 100%);
+      border-color: var(--red-blood);
+      box-shadow: 0 0 14px rgba(165, 42, 42, 0.7);
+    }
+    .tile.named.unpowered { filter: saturate(.55) brightness(.65); border-color: rgba(107, 90, 58, 0.5); }
+    .tile.named.amplified { box-shadow: 0 0 0 2px var(--affix-blue), 0 0 12px rgba(136, 136, 255, 0.5); }
+    .tile.named.locked .tile-inner { opacity: 0.45; filter: grayscale(0.7); }
+    .tile.path-content {
+      background: rgba(6, 6, 6, 0.55);
+      border-color: rgba(176, 137, 64, 0.10);
+    }
+    /* Foyer cell — Sulozor style: grid 内 locked path,不是独立入口徽章 */
+    .tile.foyer-cell {
+      background: linear-gradient(135deg, #2a3520, #1a2510) !important;
+      border-color: #4a6a30 !important;
+      box-shadow: inset 0 0 10px rgba(160, 128, 80, 0.28), 0 0 8px rgba(176, 137, 64, 0.24);
+    }
+
+    /* chain 12 色染色 — 借 Sulozor 设计 */
+    .tile[data-path-color="0"]  { background: linear-gradient(135deg, rgba(58, 153, 153, 0.30), rgba(45, 117, 117, 0.30)) !important; }
+    .tile[data-path-color="1"]  { background: linear-gradient(135deg, rgba(204, 85, 119, 0.30), rgba(153, 51, 68, 0.30)) !important; }
+    .tile[data-path-color="2"]  { background: linear-gradient(135deg, rgba(204, 153, 51, 0.30), rgba(153, 102, 17, 0.30)) !important; }
+    .tile[data-path-color="3"]  { background: linear-gradient(135deg, rgba(102, 153, 204, 0.30), rgba(68, 102, 153, 0.30)) !important; }
+    .tile[data-path-color="4"]  { background: linear-gradient(135deg, rgba(153, 187, 85, 0.30), rgba(102, 136, 51, 0.30)) !important; }
+    .tile[data-path-color="5"]  { background: linear-gradient(135deg, rgba(187, 119, 187, 0.30), rgba(136, 68, 136, 0.30)) !important; }
+    .tile[data-path-color="6"]  { background: linear-gradient(135deg, rgba(238, 153, 102, 0.30), rgba(187, 102, 51, 0.30)) !important; }
+    .tile[data-path-color="7"]  { background: linear-gradient(135deg, rgba(119, 187, 119, 0.30), rgba(68, 136, 68, 0.30)) !important; }
+    .tile[data-path-color="8"]  { background: linear-gradient(135deg, rgba(187, 102, 119, 0.30), rgba(136, 51, 68, 0.30)) !important; }
+    .tile[data-path-color="9"]  { background: linear-gradient(135deg, rgba(136, 119, 187, 0.30), rgba(85, 68, 136, 0.30)) !important; }
+    .tile[data-path-color="10"] { background: linear-gradient(135deg, rgba(170, 170, 119, 0.30), rgba(119, 119, 68, 0.30)) !important; }
+    .tile[data-path-color="11"] { background: linear-gradient(135deg, rgba(119, 170, 170, 0.30), rgba(68, 119, 119, 0.30)) !important; }
+    .tile.path-content.reachable { background: rgba(40, 32, 20, 0.55); }
+    .tile.path-content.chain { background: rgba(80, 56, 24, 0.5); }
+    /* 任务 8b-2:关庙后塌陷标记(红=塌陷清空 / 黄=降级为通路) */
+    .tile.mark-collapsed { outline: 2px solid #cc3333; outline-offset: -2px; z-index: 5; }
+    .tile.mark-downgraded { outline: 2px solid #ccaa33; outline-offset: -2px; z-index: 5; }
+    body.mark-mode .tile { cursor: pointer; }
+    .tile.foyer-cell[data-path-color] { background: linear-gradient(135deg, #2a3520, #1a2510) !important; }
+    .tile.path-content.chain:not(.foyer-cell) { background: rgba(38, 32, 22, 0.45); }
+    .tile-inner .path-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--gold-bronze);
+      opacity: 0.82;
+      box-shadow: 0 0 5px rgba(176, 137, 64, 0.6), inset 0 1px 0 rgba(245, 216, 146, 0.35);
+    }
+    .tile.path-content.chain .path-dot,
+    .tile.foyer-cell .path-dot {
+      width: 16px;
+      height: 16px;
+      background: var(--gold-glow);
+      opacity: 1;
+      box-shadow: 0 0 8px rgba(245, 216, 146, 0.85), inset 0 1px 0 rgba(255, 245, 200, 0.45);
+    }
+
+    /* chunk 融合 — 与邻居相同时去对应边 */
+    .tile.fuse-n { border-top-color: transparent; }
+    .tile.fuse-s { border-bottom-color: transparent; }
+    .tile.fuse-e { border-right-color: transparent; }
+    .tile.fuse-w { border-left-color: transparent; }
+
+    /* cell 间连接器(右 / 下方向)— 借 Sulozor 设计 */
+    .tile.conn-right::after {
+      content: '';
+      position: absolute;
+      right: calc(-1 * var(--temple-gap) - 3px);
+      top: 50%;
+      width: calc(var(--temple-gap) + 6px);
+      height: 3px;
+      background: rgba(176, 137, 64, 0.72);
+      transform: translateY(-50%);
+      z-index: 5;
+      box-shadow: 0 0 4px rgba(176, 137, 64, 0.6);
+      border-radius: 2px;
+    }
+    .tile.conn-down::before {
+      content: '';
+      position: absolute;
+      bottom: calc(-1 * var(--temple-gap) - 3px);
+      left: 50%;
+      height: calc(var(--temple-gap) + 6px);
+      width: 3px;
+      background: rgba(176, 137, 64, 0.72);
+      transform: translateX(-50%);
+      z-index: 5;
+      box-shadow: 0 0 4px rgba(176, 137, 64, 0.6);
+      border-radius: 2px;
+    }
+    /* chain 上的连接器更亮 */
+    .tile.chain.conn-right::after, .tile.chain.conn-down::before {
+      background: var(--gold-glow);
+      box-shadow: 0 0 6px var(--gold-bright);
+    }
+
+    /* 入口 / 阿兹里 连接线 */
+    .anchor-line {
+      position: absolute;
+      left: 50%;
+      width: 6px;
+      transform: translateX(-50%);
+      background: linear-gradient(to top, rgba(176, 137, 64, 0.35), rgba(176, 137, 64, 0.6));
+      box-shadow: 0 0 4px rgba(176, 137, 64, 0.3);
+      z-index: 9;
+      border-radius: 3px;
+    }
+    .anchor-line.foyer-line {
+      bottom: 130px;
+      height: 50px;
+    }
+    .anchor-line.atziri-line {
+      top: 130px;
+      height: 50px;
+    }
+    .anchor-line.active {
+      background: linear-gradient(to top, var(--red-blood), var(--gold-bright));
+      box-shadow: 0 0 8px var(--red-active), 0 0 16px rgba(165, 42, 42, 0.5);
+    }
+    .anchor-line.atziri-line.active {
+      background: linear-gradient(to bottom, var(--red-blood), var(--gold-bright));
+    }
+    .tile.destroyed {
+      background:
+        repeating-linear-gradient(45deg, rgba(60, 12, 12, 0.5), rgba(60, 12, 12, 0.5) 4px, rgba(0, 0, 0, 0.6) 4px, rgba(0, 0, 0, 0.6) 8px);
+      border: 1px dashed rgba(165, 42, 42, 0.6);
+    }
+    .tile.selected { outline: 2px solid var(--gold-bright); outline-offset: -2px; z-index: 5; }
+    .tile.drop-target { outline: 2px solid var(--green); outline-offset: -2px; box-shadow: inset 0 0 14px rgba(155, 209, 58, 0.55); z-index: 6; }
+
+    .tile-inner {
+      position: absolute;
+      inset: 0;
+      transform: rotate(-45deg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      pointer-events: none;
+    }
+    .tile-inner .room-icon {
+      width: 32px;
+      height: 32px;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
+      object-fit: contain;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 35%, rgba(232, 196, 133, 0.18), rgba(20, 16, 10, 0.65) 65%, rgba(0, 0, 0, 0.85)),
+        #14110a;
+      border: 1.5px solid var(--gold-bronze);
+      padding: 2px;
+      box-shadow: inset 0 1px 0 rgba(232, 196, 133, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.5);
+    }
+    .tile.named.chain .tile-inner .room-icon { border-color: var(--gold-bright); box-shadow: inset 0 1px 0 rgba(245, 216, 146, 0.4), 0 0 6px rgba(232, 196, 133, 0.5); }
+    .tile.named.atziri .tile-inner .room-icon { border-color: var(--red-blood); box-shadow: 0 0 6px rgba(165, 42, 42, 0.6); }
+    .tile.repair-fragile {
+      outline: 2px solid var(--red);
+      outline-offset: -2px;
+      box-shadow: inset 0 0 14px rgba(203, 99, 88, 0.45), 0 0 10px rgba(203, 99, 88, 0.35) !important;
+      z-index: 6;
+    }
+    .tile.repair-candidate {
+      outline: 2px solid var(--green);
+      outline-offset: -2px;
+      box-shadow: inset 0 0 14px rgba(155, 209, 58, 0.45), 0 0 10px rgba(155, 209, 58, 0.3) !important;
+      z-index: 6;
+    }
+    .tile-inner .room-name {
+      font-size: 7px;
+      color: var(--gold-glow);
+      line-height: 1;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+      text-shadow: 0 1px 2px #000;
+      margin-top: 1px;
+      letter-spacing: 0;
+    }
+    .tile-inner .tier-badge {
+      position: absolute;
+      bottom: 1px;
+      right: 3px;
+      font-size: 10px;
+      color: var(--gold-glow);
+      font-family: "Cinzel", serif;
+      font-weight: 700;
+      text-shadow: 0 1px 1px #000, 0 0 3px rgba(0, 0, 0, 0.9);
+    }
+    .tile-inner .medallion-mark {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 2px #000);
+    }
+    .tile-inner .power-mark, .tile-inner .mods-mark {
+      position: absolute;
+      font-size: 10px;
+      font-weight: 700;
+      text-shadow: 0 1px 1px #000;
+    }
+    .tile-inner .power-mark { bottom: 1px; left: 3px; color: #cb6358; }
+    .tile.named.powered .tile-inner .power-mark { color: #72b980; }
+    .tile-inner .mods-mark { top: 1px; left: 3px; color: #b990d8; }
+
+    .foyer-anchor, .atziri-anchor {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      user-select: none;
+    }
+    /* Foyer / Atziri 在 grid-wrap 内,跟 wrap 一起 rotate(45)。anchor 自己 rotate(-45) 反转保持正向。
+       wrap 是 572x572,cell (col=4, row=8) center 在 wrap (4*64+30+14, 8*64+30+14) = (300, 556) ,加 14px border offset.
+       cell (col=4, row=0) center 在 wrap (300, 44). */
+    .foyer-anchor, .atziri-anchor {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      user-select: none;
+      transform: rotate(-45deg);
+    }
+    .atziri-anchor {
+      transform: none;
+    }
+    .foyer-anchor {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 35%, #6a5430, #2a2010 70%, #100a05 100%);
+      border: 3px solid var(--gold-bright);
+      box-shadow: 0 0 18px rgba(232, 196, 133, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+      padding: 4px;
+    }
+    .atziri-anchor {
+      width: 57px;
+      height: 57px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #4a3a2a, #2a1a0a);
+      border: 3px solid var(--gold-bright);
+      box-shadow: 0 0 18px rgba(160, 128, 80, 0.4);
+      padding: 4px;
+    }
+    .foyer-anchor img, .atziri-anchor img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 5px var(--gold-glow));
+      pointer-events: none;
+    }
+    .atziri-anchor img { width: 48px; height: 48px; }
+    .atziri-anchor.reachable img { animation: atziri-pulse-img 2.4s ease-in-out infinite; }
+    .foyer-anchor .label, .atziri-anchor .label {
+      font-size: 9px;
+      color: var(--gold-bright);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+      font-weight: 700;
+      margin-top: 2px;
+      text-shadow: 0 1px 2px #000;
+      pointer-events: none;
+    }
+    .foyer-anchor.selected, .atziri-anchor.selected { outline: 2px solid var(--gold-glow); outline-offset: 4px; }
+    .foyer-anchor.connected {
+      border-color: var(--red-blood);
+      box-shadow: 0 0 20px var(--red-active), inset 0 0 0 1px rgba(245, 216, 146, 0.4), 0 0 8px var(--gold-glow);
+    }
+    .foyer-anchor.connected img { filter: drop-shadow(0 0 4px var(--red-active)); }
+    .atziri-anchor.connected {
+      border-color: var(--gold-glow);
+      box-shadow: 0 0 28px rgba(245, 216, 146, 0.7), 0 0 16px var(--red-blood), inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+    }
+    .atziri-anchor.locked .label::after { content: " ✕"; opacity: 0.6; }
+    .atziri-anchor .label { display: none; }
+    .atziri-anchor::after,
+    .tile.atziri-connector::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: calc(var(--temple-gap) + 4px);
+      background: var(--gold-bronze);
+      box-shadow: 0 0 4px rgba(176, 137, 64, 0.6);
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 6;
+    }
+    .atziri-anchor::after { bottom: calc(-1 * var(--temple-gap) - 4px); }
+    .tile.atziri-connector::before { top: calc(-1 * var(--temple-gap) - 4px); }
+
+    .map {
+      position: relative;
+      overflow: auto;
+      background:
+        radial-gradient(ellipse at center, rgba(40, 32, 22, 0.5), transparent 60%),
+        radial-gradient(ellipse at 50% 50%, rgba(80, 60, 30, 0.18), transparent 35%),
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='3' seed='9'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.10  0 0 0 0 0.07  0 0 0 0.22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+        var(--bg-deep);
+      border: 10px solid;
+      border-image: linear-gradient(135deg, #4a3a20, #2a2010, #5a4628, #2a2010, #4a3a20) 10;
+      border-radius: 4px;
+      box-shadow:
+        inset 0 0 100px rgba(0, 0, 0, 0.95),
+        inset 0 0 0 2px var(--gold-bronze),
+        0 0 40px rgba(0, 0, 0, 0.85);
+      min-height: 700px;
+    }
+
+    .map-inner {
+      position: relative;
+      width: 100%;
+      min-width: 840px;
+      min-height: 880px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    .corner-deco {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      opacity: 0.45;
+      pointer-events: none;
+      color: var(--gold-bronze);
+    }
+    .corner-deco.tl { top: 8px; left: 8px; }
+    .corner-deco.tr { top: 8px; right: 8px; transform: scaleX(-1); }
+    .corner-deco.bl { bottom: 8px; left: 8px; transform: scaleY(-1); }
+    .corner-deco.br { bottom: 8px; right: 8px; transform: scale(-1, -1); }
+
+    svg.cells, svg.edges {
+      position: absolute;
+      inset: 0;
+      width: 1180px;
+      height: 920px;
+      pointer-events: none;
+    }
+    svg.cells { z-index: 1; }
+    svg.edges { z-index: 2; }
+
+    .cell {
+      fill: #050505;
+      stroke: rgba(176, 137, 64, 0.12);
+      stroke-width: 1;
+      pointer-events: auto;
+      cursor: pointer;
+      transition: fill 0.15s, stroke 0.15s;
+    }
+    .cell:hover { fill: rgba(176, 137, 64, 0.18); stroke: var(--gold-bright); stroke-width: 1.5; }
+    .cell.reachable { fill: rgba(40, 32, 20, 0.7); stroke: rgba(176, 137, 64, 0.30); }
+    .cell.chain { fill: rgba(80, 56, 24, 0.5); stroke: rgba(232, 196, 133, 0.55); stroke-width: 1.5; }
+    .cell.destroyed { fill: rgba(60, 12, 12, 0.5); stroke: rgba(165, 42, 42, 0.6); stroke-dasharray: 3 3; }
+
+    .edge {
+      stroke: rgba(176, 137, 64, 0.35);
+      stroke-width: 2;
+      opacity: 1;
+    }
+    .edge.connected {
+      stroke: var(--gold-bronze);
+      stroke-width: 3;
+      filter: drop-shadow(0 0 2px rgba(176, 137, 64, 0.6));
+    }
+    .edge.entrance-edge {
+      stroke: var(--gold-bright);
+      stroke-width: 3.5;
+      filter: drop-shadow(0 0 4px rgba(232, 196, 133, 0.8));
+    }
+    .edge.boss-edge {
+      stroke: var(--red-blood);
+      stroke-width: 3.5;
+      filter: drop-shadow(0 0 4px rgba(165, 42, 42, 0.8));
+    }
+
+    .room {
+      position: absolute;
+      width: 70px;
+      height: 56px;
+      transform: translate(-50%, -50%);
+      border: 1px solid var(--gold-bronze);
+      border-radius: 3px;
+      background:
+        radial-gradient(circle at 50% 30%, var(--stone-light), var(--stone-mid) 60%, var(--stone-dark) 100%);
+      padding: 3px 4px 2px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 1px;
+      cursor: pointer;
+      user-select: none;
+      z-index: 3;
+      box-shadow:
+        inset 0 1px 0 rgba(232, 196, 133, 0.18),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+        0 1px 2px rgba(0, 0, 0, 0.6);
+    }
+    .room .room-glyph {
+      font-size: 20px;
+      line-height: 1;
+      color: var(--gold-glow);
+      text-shadow: 0 0 6px rgba(232, 196, 133, 0.6), 0 1px 2px rgba(0,0,0,0.9);
+      margin-top: 1px;
+    }
+    .room .room-icon {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 3px rgba(232, 196, 133, 0.45));
+      pointer-events: none;
+    }
+    .room.unpowered .room-icon { filter: grayscale(0.7) drop-shadow(0 0 2px rgba(0, 0, 0, 0.6)); }
+    .room.locked .room-icon { filter: grayscale(0.85) brightness(0.5); }
+    .medallion-icon {
+      width: 14px;
+      height: 14px;
+      object-fit: contain;
+      display: block;
+    }
+    .emblem-img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 5px rgba(232, 196, 133, 0.7));
+      pointer-events: none;
+    }
+    .room.atziri-box .emblem-img {
+      width: 50px;
+      height: 50px;
+      filter: drop-shadow(0 0 6px var(--gold-glow));
+    }
+    .room.atziri-box.reachable .emblem-img {
+      animation: atziri-pulse-img 2.4s ease-in-out infinite;
+    }
+    @keyframes atziri-pulse-img {
+      0%, 100% { filter: drop-shadow(0 0 6px var(--gold-glow)); }
+      50% { filter: drop-shadow(0 0 14px var(--gold-glow)) drop-shadow(0 0 4px var(--red-blood)); }
+    }
+    .medallion {
+      padding: 0 !important;
+      overflow: hidden;
+    }
+    .room.architect .room-glyph { color: var(--gold-bright); text-shadow: 0 0 10px var(--gold-glow); }
+    .room.atziri .room-glyph { color: #ffcc99; text-shadow: 0 0 10px var(--red-blood); }
+    .room[data-kind="boss"] .room-glyph { color: #ffaa88; }
+    .room[data-kind="craft"] .room-glyph { color: #b0d0e8; }
+    .room[data-kind="power"] .room-glyph { color: #d8e890; }
+    .room[data-kind="reward"] .room-glyph { color: var(--gold-glow); }
+    .room[data-kind="utility"] .room-glyph { color: #d0b0e0; }
+    .room:hover { border-color: var(--gold-bright); box-shadow: inset 0 1px 0 rgba(245, 216, 146, 0.25), 0 0 8px rgba(232, 196, 133, 0.4); }
+    .room.selected { outline: 2px solid var(--gold-bright); outline-offset: 2px; z-index: 6; }
+    .room.reachable { box-shadow: inset 0 1px 0 rgba(232, 196, 133, 0.18), inset 0 -1px 0 rgba(0, 0, 0, 0.5), 0 0 4px rgba(176, 137, 64, 0.4); }
+    .room.locked { opacity: .45; filter: grayscale(0.6); }
+    .room.chain { box-shadow: inset 0 0 0 2px rgba(232, 196, 133, .6), 0 0 8px rgba(176, 137, 64, 0.4); }
+    .room.unpowered { border-color: #6b5a3a; filter: saturate(.55) brightness(.65); }
+    .room.amplified { box-shadow: 0 0 0 2px var(--affix-blue), 0 0 12px rgba(136, 136, 255, 0.5); }
+
+    .room[data-kind="boss"] { background: radial-gradient(circle at 50% 30%, #6a2a2e, #3a1418 70%, #1a0608 100%); border-color: var(--red-blood); }
+    .room[data-kind="reward"] { background: radial-gradient(circle at 50% 30%, #5a4828, #3a2f10 70%, #1a1408 100%); }
+    .room[data-kind="craft"] { background: radial-gradient(circle at 50% 30%, #3a4a58, #1f2d36 70%, #08141a 100%); }
+    .room[data-kind="power"] { background: radial-gradient(circle at 50% 30%, #3a5236, #25321e 70%, #0a160a 100%); }
+    .room[data-kind="utility"] { background: radial-gradient(circle at 50% 30%, #4a3a58, #2b2533 70%, #18101e 100%); }
+    .room[data-kind="path"] { background: radial-gradient(circle at 50% 30%, #2a2620, #181612 70%, #0a0908 100%); }
+    .room.architect {
+      background: radial-gradient(circle at 50% 30%, #7a5828, #44321a 70%, #1a1208 100%);
+      border-color: var(--gold-bright);
+      box-shadow: inset 0 1px 0 rgba(245, 216, 146, 0.3), 0 0 10px rgba(232, 196, 133, 0.5);
+    }
+    .room.atziri {
+      background: radial-gradient(circle at 50% 30%, #8a2a30, #5a1f2a 70%, #1a0608 100%);
+      border-color: var(--red-blood);
+      box-shadow: 0 0 14px rgba(165, 42, 42, 0.7);
+    }
+    .room.foyer-box {
+      background: radial-gradient(circle at 50% 35%, #5a4a28, #2a2010 70%, #100a05 100%);
+      border: 2px solid var(--gold-bright);
+      width: 100px; height: 70px;
+      border-radius: 50px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.5), 0 0 18px rgba(232, 196, 133, 0.55);
+      flex-direction: column;
+      gap: 2px;
+      padding: 6px;
+    }
+    .room.foyer-box .emblem {
+      width: 30px; height: 30px;
+      color: var(--gold-bright);
+      filter: drop-shadow(0 0 4px rgba(232, 196, 133, 0.7));
+    }
+    .room.foyer-box .room-name {
+      color: var(--gold-bright);
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .room.atziri-box {
+      background: radial-gradient(circle at 50% 30%, #8a2a30, #4a1820 60%, #1a0608 100%);
+      border: 2px solid var(--gold-bright);
+      width: 130px; height: 78px;
+      border-radius: 4px;
+      box-shadow: 0 0 26px rgba(165, 42, 42, 0.75), inset 0 0 0 1px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.5);
+      flex-direction: column;
+      gap: 2px;
+      padding: 6px;
+    }
+    .room.atziri-box .emblem {
+      width: 40px; height: 40px;
+      color: var(--gold-bright);
+      filter: drop-shadow(0 0 6px var(--gold-glow));
+    }
+    .room.atziri-box .room-name {
+      color: var(--gold-bright);
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .room.atziri-box.locked .room-name::after { content: " ✕"; opacity: 0.7; }
+    .room.atziri-box.reachable .emblem { color: var(--gold-glow); animation: atziri-pulse 2.4s ease-in-out infinite; }
+    @keyframes atziri-pulse {
+      0%, 100% { filter: drop-shadow(0 0 6px var(--gold-glow)); }
+      50% { filter: drop-shadow(0 0 14px var(--gold-glow)) drop-shadow(0 0 4px var(--red-blood)); }
+    }
+
+    .room .room-name {
+      font-size: 10px;
+      line-height: 1.05;
+      text-align: center;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      color: var(--gold-bright);
+      font-family: "Microsoft YaHei", "Cinzel", serif;
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+    }
+    .room .tier-badge {
+      position: absolute;
+      top: 1px;
+      right: 3px;
+      font-size: 10px;
+      color: var(--gold-glow);
+      line-height: 1;
+      font-family: "Cinzel", serif;
+      font-weight: 700;
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+    }
+
+    .room.empty-tile {
+      width: 10px;
+      height: 10px;
+      border-radius: 0;
+      background: transparent;
+      border: 1px dotted rgba(176, 137, 64, 0.3);
+      opacity: 0.5;
+      box-shadow: none;
+    }
+    .room.empty-tile:hover { opacity: 1; transform: translate(-50%, -50%) scale(1.8); border-color: var(--gold-bright); border-style: solid; background: rgba(176, 137, 64, 0.15); }
+    .room.empty-tile.selected { opacity: 1; border-style: solid; border-color: var(--gold-bright); transform: translate(-50%, -50%) scale(1.4); background: rgba(232, 196, 133, 0.2); }
+
+    .room.path-dot {
+      width: 36px;
+      height: 6px;
+      border-radius: 1px;
+      background: linear-gradient(to bottom, var(--gold-bronze), #6a4f20);
+      border: 1px solid #2a1f10;
+      padding: 0;
+      opacity: 0.65;
+      display: block;
+      box-shadow: 0 0 3px rgba(176, 137, 64, 0.5), inset 0 1px 0 rgba(232, 196, 133, 0.3);
+      transition: opacity .12s, transform .12s, box-shadow .12s;
+    }
+    .room.path-dot::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 6px;
+      height: 36px;
+      background: linear-gradient(to right, var(--gold-bronze), #6a4f20);
+      border: 1px solid #2a1f10;
+      border-radius: 1px;
+      box-shadow: inset 1px 0 0 rgba(232, 196, 133, 0.3);
+    }
+    .room.path-dot.reachable { opacity: 0.9; box-shadow: 0 0 6px rgba(176, 137, 64, 0.7), inset 0 1px 0 rgba(232, 196, 133, 0.4); }
+    .room.path-dot.chain {
+      opacity: 1;
+      background: linear-gradient(to bottom, var(--gold-bright), var(--gold-bronze));
+      box-shadow: 0 0 8px rgba(245, 216, 146, 0.7), inset 0 0 0 1px var(--red-active);
+    }
+    .room.path-dot.chain::before {
+      background: linear-gradient(to right, var(--gold-bright), var(--gold-bronze));
+      box-shadow: inset 0 0 0 1px var(--red-active);
+    }
+    .room.path-dot.selected { outline: 2px solid var(--gold-bright); outline-offset: 3px; opacity: 1; }
+    .room.path-dot:hover {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.3);
+      box-shadow: 0 0 12px var(--gold-glow), inset 0 1px 0 rgba(245, 216, 146, 0.5);
+      z-index: 5;
+    }
+
+    .room .medallion {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #f7d669, #8a6a25);
+      border: 1px solid #2a2010;
+      color: #2a2010;
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 12px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,.5);
+      z-index: 4;
+    }
+
+    .room .power-marker {
+      position: absolute;
+      bottom: -6px;
+      left: -6px;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: #2a322b;
+      border: 1px solid #cb6358;
+      color: #cb6358;
+      font-size: 10px;
+      line-height: 12px;
+      text-align: center;
+      font-weight: 700;
+      z-index: 4;
+    }
+    .room.powered .power-marker { border-color: #72b980; color: #72b980; }
+
+    .room .mods-badge {
+      position: absolute;
+      bottom: -6px;
+      right: -6px;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 3px;
+      border-radius: 999px;
+      background: #2a322b;
+      border: 1px solid #b990d8;
+      color: #b990d8;
+      font-size: 9px;
+      line-height: 12px;
+      text-align: center;
+      font-weight: 700;
+      z-index: 4;
+    }
+
+    .hand {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .hand-slot {
+      font-size: 11px;
+      padding: 6px 36px 6px 10px;
+      border: 1px solid var(--gold-bronze);
+      background: linear-gradient(to right, #2a2418, transparent 70%);
+      border-radius: 3px;
+      color: var(--gold-bright);
+      cursor: pointer;
+      text-align: left;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+      font-weight: 500;
+      position: relative;
+      min-height: 36px;
+      box-shadow: inset 0 1px 0 rgba(232, 196, 133, 0.12);
+    }
+    .hand-slot::after {
+      content: '';
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%) rotate(45deg);
+      width: 20px;
+      height: 20px;
+      background: radial-gradient(circle, var(--stone-light), var(--stone-dark));
+      border: 1px solid var(--gold-bronze);
+      box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6);
+    }
+    .hand-slot:hover { border-color: var(--gold-bright); color: var(--gold-glow); box-shadow: inset 0 1px 0 rgba(245, 216, 146, 0.25), 0 0 8px rgba(232, 196, 133, 0.4); }
+    .hand-slot:hover::after { border-color: var(--gold-bright); box-shadow: 0 0 8px var(--gold-glow); }
+    .hand-slot.empty { background: rgba(20, 18, 16, 0.5); opacity: .25; cursor: default; border-color: rgba(176, 137, 64, 0.2); }
+    .hand-slot.empty::after { display: none; }
+    .hand-slot.dragging { opacity: 0.4; border-style: dashed; }
+    .hand-slot[draggable="true"] { cursor: grab; }
+    .hand-slot[draggable="true"]:active { cursor: grabbing; }
+
+    .room.drop-target { outline: 2px solid var(--green); outline-offset: 2px; box-shadow: 0 0 16px rgba(155, 209, 58, 0.7); z-index: 7; }
+    .room.empty-tile.drop-target, .room.path-dot.drop-target { transform: translate(-50%, -50%) scale(2); opacity: 1; background: var(--green-tier); border-color: var(--green); }
+    polygon.cell.drop-target-cell { fill: var(--green-place); stroke: var(--green); stroke-width: 2; }
+    polygon.cell.drop-target-cell:hover { fill: var(--green-tier); }
+
+    .tier-chain-display {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      font-size: 10px;
+      color: var(--muted);
+      padding: 4px;
+      border: 1px solid var(--gold-bronze);
+      border-radius: 3px;
+      background: linear-gradient(to bottom, var(--panel-2), var(--panel));
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+      letter-spacing: 0.5px;
+    }
+    .tier-chain-display .tc {
+      padding: 2px 5px;
+      border-radius: 2px;
+      background: rgba(20, 18, 16, 0.6);
+      border: 1px solid rgba(176, 137, 64, 0.3);
+    }
+    .tier-chain-display .tc.current {
+      background: linear-gradient(to bottom, #6a4a20, #3a2810);
+      color: var(--gold-glow);
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 6px rgba(232, 196, 133, 0.5);
+      font-weight: 700;
+    }
+
+    .side { display: grid; gap: 14px; align-content: start; }
+    .score-list, .log { display: grid; gap: 8px; }
+    .item {
+      border: 1px solid var(--gold-bronze);
+      border-radius: 3px;
+      padding: 9px;
+      background: linear-gradient(to bottom, var(--panel-2), var(--panel));
+      box-shadow: inset 0 1px 0 rgba(232, 196, 133, 0.1);
+    }
+    .item.warning { border-color: var(--amber); background: linear-gradient(to bottom, rgba(70, 40, 18, 0.9), var(--panel)); }
+    .item.good { border-color: rgba(155, 209, 58, 0.65); background: linear-gradient(to bottom, rgba(30, 54, 18, 0.75), var(--panel)); }
+    .item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--gold-bright);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 12px;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+    }
+    .item p {
+      margin: 0;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.5;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .tab.active { border-color: var(--gold-bright); background: linear-gradient(to bottom, #6a4a20, #3a2810); color: var(--gold-glow); }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      background: #0a0908;
+      color: var(--gold-bright);
+      border: 1px solid var(--gold-bronze);
+      border-radius: 3px;
+      padding: 10px;
+      resize: vertical;
+      font: 11px Consolas, monospace;
+    }
+
+    .muted { color: var(--muted); font-size: 11px; line-height: 1.45; font-family: "Microsoft YaHei", system-ui, sans-serif; }
+    .pill-line { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill {
+      color: var(--gold-bright);
+      background: linear-gradient(to bottom, #2a2418, #181210);
+      border: 1px solid var(--gold-bronze);
+      border-radius: 2px;
+      padding: 4px 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+    }
+    .badge {
+      border: 1px solid var(--gold-bronze);
+      color: var(--gold-bright);
+      border-radius: 2px;
+      padding: 1px 6px;
+      font-size: 11px;
+    }
+
+    /* ===== 循环助手:道具库存输入网格(数据驱动) ===== */
+    .loop-inventory { display: flex; flex-direction: column; gap: 10px; }
+    .inv-group { display: flex; flex-direction: column; }
+    .inv-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 5px;
+      font-family: "Cinzel", "Microsoft YaHei", serif;
+    }
+    .item-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .item-cell {
+      background: rgba(10, 9, 8, 0.7);
+      border: 1px solid var(--gold-bronze);
+      border-radius: 4px;
+      padding: 6px 3px;
+      text-align: center;
+      cursor: pointer;
+      container-type: inline-size;
+      user-select: none;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .item-cell:hover { border-color: var(--gold-bright); }
+    .item-cell.active {
+      background: linear-gradient(to bottom, rgba(176, 137, 64, 0.18), rgba(10, 9, 8, 0.7));
+      border-color: var(--gold-bright);
+    }
+    .item-cell .name {
+      font-size: clamp(8px, 3cqi, 11px);
+      color: var(--muted);
+      min-height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.2;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .item-cell .count {
+      font-size: clamp(15px, 7cqi, 24px);
+      font-weight: bold;
+      color: var(--stone-light);
+      line-height: 1.1;
+    }
+    .item-cell.active .name { color: var(--gold-bright); }
+    .item-cell.active .count { color: var(--gold-glow); }
+    .inv-tally { font-size: 10px; color: var(--muted); text-align: right; margin-top: 4px; }
+
+    /* ===== 循环助手:行动清单面板(参 combat-v4 mockup) ===== */
+    .loop-checklist .row { margin-bottom: 8px; }
+    #loopChecklist { display: flex; flex-direction: column; gap: 4px; }
+    .loop-checklist .cl-note {
+      background: linear-gradient(135deg, rgba(106, 74, 32, 0.45), rgba(58, 40, 16, 0.55));
+      border: 1px solid var(--gold-bright);
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 11px;
+      color: var(--gold-glow);
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .loop-checklist .cl-empty {
+      color: var(--muted);
+      font-size: 11px;
+      padding: 8px 4px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .ci {
+      background: rgba(10, 9, 8, 0.7);
+      border: 1px solid var(--gold-bronze);
+      border-radius: 5px;
+      padding: 6px 8px;
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+    }
+    .ci.skip { opacity: 0.5; }
+    .ci .cbody { flex: 1; min-width: 0; }
+    .ci .cmain {
+      font-size: 11px;
+      color: var(--stone-light);
+      line-height: 1.4;
+      font-family: "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .ci .cmain b { color: var(--gold-bright); }
+    .ci .csub { font-size: 10px; color: var(--muted); margin-top: 1px; line-height: 1.3; }
+    .pos {
+      font-family: Consolas, monospace;
+      background: rgba(176, 137, 64, 0.12);
+      border: 1px solid var(--gold-bronze);
+      border-radius: 2px;
+      padding: 0 3px;
+      font-size: 10px;
+      color: var(--gold-bright);
+      white-space: nowrap;
+    }
+    .ptag {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 2px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .ptag.pr { background: #3a1e1e; color: #ff9999; }
+    .ptag.pp { background: #1e3a2a; color: #99ff99; }
+    .ptag.pl { background: #2a2a1e; color: #ffdd99; }
+    .ptag.ps { background: #1e1e1e; color: #888; }
+
+    @media (max-width: 1240px) {
+      .layout { grid-template-columns: 300px 1fr; }
+      .side { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 860px) {
+      :root {
+        --temple-cell: 42px;
+        --temple-gap: 8px;
+        --temple-border: 2px;
+      }
+      .layout { grid-template-columns: 1fr; padding: 12px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .side { grid-template-columns: 1fr; }
+      .map-inner { min-width: 680px; min-height: 720px; }
+      .temple-board { height: 720px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="layout">
+    <header>
+      <div>
+        <h1>阿兹里神庙模拟器 v7</h1>
+        <div class="subtitle"><b>0.5 开服当天用 Probe 校准 → 跑 <code>analyze_observations.py</code> → 切 Plan A / 链尾专用</b>。详 <a href="results/FIELD_QUICKSTART.md" style="color:var(--gold-bright)">FIELD_QUICKSTART.md</a>。</div>
+      </div>
+      <div class="pill-line">
+        <span class="pill">Plan A: random/weighted validated</span>
+        <span class="pill">链尾专用: chain-end 切换</span>
+        <span class="pill">规则待 0.5 实测</span>
+      </div>
+    </header>
+
+    <nav class="view-tabs">
+      <button class="view-tab active" data-view="combat" title="正在游戏里 — 副驾驶模式,记录当前神庙 + 下一步建议">⚔ 实战同步</button>
+      <button class="view-tab" data-view="premortem" title="还没进游戏 — 沙盘模式,设计 / 比较 / 跑模拟">🧪 战前预演</button>
+      <button class="view-tab" data-view="calibration" title="规则未确定 — 用 Probe + 实测数据判断塌陷算法">📐 开服校准</button>
+    </nav>
+
+    <section class="panel controls">
+
+      <!-- ===== 实战同步(combat)— 副驾驶模式 ===== -->
+      <div data-view="combat">
+        <div class="nextstep-bar">
+          <b>下一步</b>:点神庙格 → 选 <i>放卡 / 升级 / 贴锁</i>(在战前预演 tab 改)。close 后记录塌陷,关庙自动重抽手牌。
+          <br><small style="opacity:0.8">每轮:抽手牌 → 应用塌陷标记 → 修关键格 → 贴锁 → 关庙</small>
+          <br><small style="opacity:0.7;color:var(--amber)">⚠ 0.5 PN:Room-based 纹章(升阶 / 词条 / 重抽 / Reward 等)进庙后不可用,必须 close 前用</small>
+        </div>
+
+        <h2>当前手牌</h2>
+        <div id="handSlots" class="hand"></div>
+        <button id="drawHandBtn">抽 6 张手牌(重新摇)</button>
+
+        <h2 style="margin-top:14px">本轮事件</h2>
+        <div class="muted" style="font-size:11px;margin-bottom:4px">
+          进入暗杀只 mark,close 才一并 resolve + 自动抽下轮手牌。
+        </div>
+        <div class="row">
+          <button id="enterTempleEvent">进入神庙(开门)</button>
+          <button id="architectKillEvent">建筑师击杀</button>
+        </div>
+        <div class="row">
+          <button id="atziriKillEvent" style="background:linear-gradient(to bottom, #4a1820, #2a0c10); border-color: var(--red-blood); color: var(--red);" title="⚠ 危险:打 Atziri 大塌陷 ~50%,等于神庙重置。">⚠ 阿兹里击杀(危险/终局)</button>
+          <button id="closeTemple" class="primary">关闭神庙(结算)</button>
+        </div>
+        <button id="respawnArchitect">建筑师重生(随机)</button>
+
+        <h2 style="margin-top:14px">纹章使用</h2>
+        <div class="row">
+          <button id="useQuipolatl">升阶</button>
+          <button id="useZantipi">Waystone 词条</button>
+        </div>
+        <div class="row">
+          <button id="usePuhuarte">重抽手牌</button>
+          <button id="collectMedallionsBtn">采集纹章</button>
+        </div>
+        <div class="row">
+          <button id="useEstazunti" title="击杀建筑师后,本次额外多 1 个 Restricted Room 卡位">Reward 插槽</button>
+          <button id="useHayoxi" title="重抽某 Restricted Room 的奖励">重抽 Reward</button>
+        </div>
+        <button id="useUromoti" title="加 1 个随机房到手牌">加随机房</button>
+      </div>
+
+      <!-- ===== 战前预演(premortem)— 沙盘模式 ===== -->
+      <div data-view="premortem">
+        <h2>规则与策略</h2>
+        <label>规则版本
+          <select id="ruleSet">
+            <option value="0.5">0.5 新赛季规则</option>
+            <option value="0.4">0.4 旧蛇形规则</option>
+          </select>
+        </label>
+        <label>策略目标
+          <select id="strategy">
+            <option value="balanced">稳定高收益</option>
+            <option value="craft">冲工艺房</option>
+            <option value="scarab">冲纹章 / 赛季货币</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>风险惩罚<input id="risk" type="number" min="0" max="10" value="4"></label>
+        </div>
+        <div class="switches">
+          <label class="toggle"><input id="protectPath" type="checkbox" checked> 保护主路</label>
+          <label class="toggle" style="display:none"><input id="avoidBossCut" type="checkbox"> 保阿兹里线(已弃)</label>
+          <label class="toggle"><input id="showReference" type="checkbox"> 显示底图</label>
+          <label class="toggle" title="0.5 PN:在 Temple Atlas Tree 解锁后,房间可升至 T4"><input id="t4Unlocked" type="checkbox"> T4 已解锁</label>
+        </div>
+
+        <h2 style="margin-top:14px">放卡 / 编辑(选中格子)</h2>
+        <div class="muted" id="selectedInfo">点击网格上的格子来选中</div>
+        <label>房型(放置/替换)
+          <select id="roomType"></select>
+        </label>
+        <div class="row">
+          <label>等级<input id="roomTier" type="number" min="0" max="4" value="0"></label>
+          <label>权重<input id="manualWeight" type="number" min="-20" max="50" value="0"></label>
+        </div>
+        <div class="row">
+          <button id="placeRoom">放置房间</button>
+          <button id="placePath">放置通路</button>
+        </div>
+        <div class="row">
+          <button id="clearTile">清空格子</button>
+          <button id="upgradeRoom">升级</button>
+        </div>
+        <div class="row">
+          <button id="downgradeRoom">手动塌陷</button>
+          <button id="toggleMedallion">贴/撕 锁定纹章</button>
+        </div>
+        <div id="tierChain" class="tier-chain-display" style="display:none"></div>
+      </div>
+
+      <!-- ===== 开服校准(calibration)— 规则判断 ===== -->
+      <div data-view="calibration">
+        <h2 style="color:var(--gold-glow)">0.5 开服校准卡</h2>
+        <div class="muted" style="font-size:11px;line-height:1.6;margin-bottom:8px">
+          <b style="color:var(--gold-bright)">规则未定 → 先校准</b>。<br>
+          Probe 3-5 次 close → 记录 20-30 塌陷点 → 跑 <code style="color:var(--gold-glow)">python sim/analyze_observations.py</code> → posterior 决定 Plan A 或链尾专用。
+        </div>
+
+        <h2 style="margin-top:14px">实测记录流程</h2>
+        <ol class="muted" style="font-size:11px;line-height:1.6;padding-left:18px;margin:0">
+          <li>建出 Probe 神庙(锁牌贴 (2,4))</li>
+          <li>每次 close 后填 <code>results/field-observation.csv</code></li>
+          <li>每塌一格一行(距离/内容/cut/lock/result)</li>
+          <li>≥ 20 观测后跑 analyze_observations.py</li>
+          <li>看 mode_posterior → 切方案</li>
+        </ol>
+        <div class="muted" style="font-size:10px;margin-top:8px">
+          完整流程 <a href="results/FIELD_QUICKSTART.md" style="color:var(--gold-bright)">FIELD_QUICKSTART.md</a> ·
+          CSV 模板 <a href="results/field-observation-template.csv" style="color:var(--gold-bright)">field-observation-template.csv</a>
+        </div>
+
+        <h2 style="margin-top:14px">生成观测行</h2>
+        <div class="row">
+          <label>visit<input id="calibrationVisit" type="number" min="1" value="1"></label>
+          <label>事件
+            <select id="calibrationEvent">
+              <option value="close">close</option>
+              <option value="enter">enter</option>
+              <option value="architect-kill">architect-kill</option>
+              <option value="atziri-kill">atziri-kill</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>结果
+            <select id="calibrationResult">
+              <option value="remove">remove</option>
+              <option value="downgrade">downgrade</option>
+              <option value="skip">skip</option>
+            </select>
+          </label>
+        </div>
+        <label>备注<input id="calibrationNotes" type="text" placeholder="可留空"></label>
+        <button id="addCalibrationRow" class="primary">把选中格加入观测</button>
+      </div>
+
+      <!-- ===== shared:三视图都需要的 ===== -->
+      <div data-view="shared" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--gold-bronze)">
+        <h2>载入模板</h2>
+        <div class="row">
+          <button id="loadProbe" style="flex:1">Probe</button>
+          <button id="loadPlanA" class="primary" style="flex:1">Plan A</button>
+          <button id="loadPlanB" style="flex:1">链尾专用</button>
+        </div>
+        <div class="muted" style="font-size:10px;margin-top:4px">
+          实战 tab 一般用 <b>重置</b> + 手动建,战前预演 / 校准 tab 可直接载入对照.
+        </div>
+
+        <h2 style="margin-top:14px">重置</h2>
+        <button id="reset" class="primary">重置(空神庙)</button>
+        <div class="muted" style="font-size:10px;margin-top:8px;line-height:1.5">
+          历史 baseline(蛇形 / 支链 / Python sweep 加载)在 <b>战前预演</b> tab 右栏.
+        </div>
+      </div>
+
+    </section>
+
+    <section class="panel loop-inventory" data-view="combat">
+      <div id="loopInventory"></div>
+    </section>
+
+    <section class="panel temple-wrap">
+      <div class="toolbar">
+        <div class="metrics" id="metrics"></div>
+        <div class="row" style="flex: 0 0 auto;">
+          <button id="loopMarkToggle">关庙后·标记塌陷</button>
+          <button id="loopMarkConfirm" style="display:none">✓ 确认更新</button>
+          <button id="loopResetBtn">重置神庙</button>
+          <button id="exportJson">导出 JSON</button>
+        </div>
+      </div>
+      <div class="map">
+        <div class="map-inner" id="map"></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <!-- ===== 实战同步右栏:行动清单 + 路线 + 风险 + 当下提示 ===== -->
+      <section class="panel loop-checklist" data-view="combat">
+        <h2>本次行动清单</h2>
+        <div class="row">
+          <select id="loopBlueprintSelect"></select>
+          <select id="loopStrategySelect"></select>
+          <button id="loopGenBtn">⚡ 生成行动清单</button>
+        </div>
+        <div id="loopChecklist"></div>
+      </section>
+
+      <section class="panel" data-view="combat">
+        <h2>路线与风险</h2>
+        <div id="routeInfo" class="log"></div>
+      </section>
+
+      <section class="panel" data-view="combat">
+        <h2>塌陷实测器</h2>
+        <div class="muted" style="font-size:11px;margin-bottom:6px">
+          关庙后用「标记塌陷」点掉的格(红)/变通路的格(黄),「✓ 确认」即记一次。浏览器内当场算出塌陷选点结论。
+        </div>
+        <div id="loopProbePanel"></div>
+      </section>
+
+      <section class="panel" data-view="combat">
+        <h2>抢修控制</h2>
+        <div id="repairPanel" class="repair-panel"></div>
+      </section>
+
+      <section class="panel" data-view="combat">
+        <div class="tabs">
+          <button class="tab active" data-tab="notes">规则摘要</button>
+          <button class="tab" data-tab="json">JSON</button>
+        </div>
+        <div id="notesPane">
+          <div class="item">
+            <strong>本轮 checklist</strong>
+            <p>1) 抽手牌 ─ 2) 修上轮塌陷的关键格 ─ 3) 贴锁 ─ 4) 补诱饵 ─ 5) close 结算。<b>不主动通 Atziri</b>。</p>
+          </div>
+          <div class="item">
+            <strong>0.5 塌陷</strong>
+            <p>距入口最远优先(0.5 PN),断链关键房降级为 path(保留路线但吃房间收益)。锁牌挡一次,batch 结束消耗。</p>
+          </div>
+          <div class="item">
+            <strong>事件数量(占位,0.5 实测前)</strong>
+            <p>进入 ~2 房(累积到 close 一并 resolve)、关庙 ~10%、建筑师击杀 ~30%、阿兹里击杀 ~50%。</p>
+          </div>
+        </div>
+        <textarea id="jsonPane" style="display:none"></textarea>
+      </section>
+
+      <!-- ===== 战前预演右栏:沙盘模拟 + 历史 baseline ===== -->
+      <section class="panel" data-view="premortem">
+        <h2>历史 baseline 模板</h2>
+        <div class="muted" style="font-size:11px;margin-bottom:6px">
+          研究用对照,不是 0.5 开服推荐。
+        </div>
+        <button id="snakePreset">载入蛇形预设</button>
+        <button id="sacrificeLimbPreset">载入支链预设(蛇形 + 8 格支链)</button>
+        <button id="multiChainPreset">载入多链预设(主链 + 4 横支)</button>
+        <button id="loadPythonBest" class="primary" style="margin-top:6px">★ 加载 Plan A JSON (core-shell-best.json)</button>
+      </section>
+
+      <section class="panel" data-view="premortem">
+        <h2>模拟当前布局</h2>
+        <div class="muted" style="font-size:11px;margin-bottom:6px">
+          直接对中间棋盘当前 state 跑 MC. 不污染实战日志.
+        </div>
+        <div class="row">
+          <label>塌陷模式
+            <select id="simDestabMode">
+              <option value="chain-end">chain-end(0.5 假设)</option>
+              <option value="weighted">weighted</option>
+              <option value="random">random</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>回合数<input id="simRounds" type="number" min="1" max="50" value="5"></label>
+          <label>trials<input id="simTrials" type="number" min="1" max="200" value="30"></label>
+        </div>
+        <button id="simCurrentLayoutBtn" class="primary">模拟当前布局(state.tiles → MC)</button>
+
+        <h2 style="margin-top:14px">历史 baseline 模拟</h2>
+        <div class="row">
+          <label>纹章<input id="simMedallions" type="number" min="0" max="10" value="3"></label>
+          <label>关闭次数<input id="simCloseReps" type="number" min="0" max="10" value="3"></label>
+        </div>
+        <div class="switches">
+          <label class="toggle"><input id="simEnter" type="checkbox" checked> 进入</label>
+          <label class="toggle"><input id="simArchitect" type="checkbox" checked> 建筑师</label>
+          <label class="toggle" title="⚠ 循环策略下不主动通 Atziri。默认不勾。"><input id="simAtziri" type="checkbox"> ⚠ 阿兹里(终局)</label>
+        </div>
+        <button id="snakeCompareSim">蛇形塌陷对比 (0.4 与 0.5,单次)</button>
+        <button id="snakeCompareMC">统计模拟 × 100 次 蛇形稳定性</button>
+        <button id="strategyCompareBtn">3 策略对比(直链 / 支链 / 支链+修复)</button>
+        <button id="longRunMCBtn">长期自播放(多步前瞻 × 5 回合 × 30 次模拟)</button>
+      </section>
+
+      <section class="panel" data-view="premortem">
+        <h2>目标模板规划</h2>
+        <label>目标模板
+          <select id="goalTemplateSelect"></select>
+        </label>
+        <div id="goalDescription" class="goal-desc"></div>
+        <div class="row">
+          <button id="recommendGoalBtn">本次进神庙建议</button>
+          <button id="projectVisitsBtn">展望(25 次进庙 × 30 次模拟)</button>
+        </div>
+        <div class="row">
+          <button id="compareAllTemplatesBtn" class="primary">对比所有模板(最大化收益分析)</button>
+        </div>
+        <p class="muted" style="margin-top:8px">
+          分析基于中央神庙当前状态。「对比所有」会对每个模板跑长期模拟,找出 lootMult/HV 综合最优。
+        </p>
+      </section>
+
+      <section class="panel lab-results-panel" data-view="premortem">
+        <h2>沙盘结果</h2>
+        <div id="labResults" class="log">
+          <div class="item"><strong>点左 / 上面按钮跑模拟</strong>
+            <p>结果分布(均值 / 标准差 / 分位)、规划建议、长期展望会显示在这里。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 开服校准右栏:观测录入 + posterior 摘要 ===== -->
+      <section class="panel" data-view="calibration">
+        <h2>校准状态</h2>
+        <button id="loadCalibrationSummary" class="primary" style="width:100%;margin-bottom:8px">读取校准结果</button>
+        <div id="calibrationSummary"></div>
+      </section>
+
+      <section class="panel" data-view="calibration">
+        <h2>跑校准</h2>
+        <div class="muted" style="font-size:11px;line-height:1.6">
+          <b>1.</b> 命令行进 <code>sim/</code>(或项目根)<br>
+          <b>2.</b> 复制或下载下方 CSV,保存为 <code>results/field-observation.csv</code><br>
+          <b>3.</b> 运行:<code style="color:var(--gold-glow)">python sim/analyze_observations.py</code><br>
+          <b>4.</b> 点左侧 <b>读取校准结果</b><br>
+          <b>5.</b> 按推荐加载 Plan A 或链尾专用
+        </div>
+      </section>
+
+      <section class="panel" data-view="calibration">
+        <h2>观测 CSV</h2>
+        <div class="row">
+          <button id="copyCalibrationCsv">复制 CSV</button>
+          <button id="downloadCalibrationCsv">下载 CSV</button>
+        </div>
+        <button id="clearCalibrationRows" style="margin-top:8px">清空暂存</button>
+        <div id="calibrationRecorder" class="log" style="margin-top:8px"></div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="data/rooms.data.js"></script>
+  <script src="src/01-core.js"></script>
+  <script src="src/02-scoring.js"></script>
+  <script src="src/03-planning.js"></script>
+  <script src="src/04-templates.js"></script>
+  <script src="src/05-recommender.js"></script>
+  <script src="src/06-simulation.js"></script>
+  <script src="src/07-mechanics.js"></script>
+  <script src="src/08-ui.js"></script>
+  <script src="src/09-strategy.js"></script>
+  <script src="src/10-loop-ui.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+visit,rule_event,reach_before,target_row,target_col,distance_from_foyer,content,tier,is_path,is_cut_vertex,has_lock,result,notes
+# === 实测填写指南(2026-05-21 0.5 开服后) ===
+# 每个塌陷点一行。一个 close 事件可能塌多个房,每个都记一行,visit 用同一个数字.
+# rule_event: close / architect-kill / atziri-kill / enter
+# reach_before: 该 visit 开始时可达房间数(包含 foyer)
+# target_row, target_col: 被塌陷的格子坐标(0..8)
+# distance_from_foyer: BFS 距离,foyer (8,4) = 0
+# content: 塌陷前格子内容(alchemy_lab / thaumaturge / garrison / armoury / path / ...)
+# tier: 塌陷前 tier (0..4),path 是 0
+# is_path: true / false — 是否 path tile
+# is_cut_vertex: true / false — 移除该格是否会断链(用 sim 工具或手算)
+# has_lock: true / false — 该格此 visit 开始时是否贴了锁牌
+# result: remove(destroyed) / downgrade(content→path) / skip(锁挡住 / cut-vertex 跳过)
+# notes: 自由备注(异常现象、降级到啥 tier 等)
+#
+# === 示例(开服后删掉,改成真实数据)===
+1,close,30,1,7,10,path,0,true,false,false,remove,probe v1 第 1 次 close 第 1 塌
+1,close,30,2,6,9,thaumaturge,1,false,false,false,remove,
+1,close,30,3,4,5,thaumaturge,1,false,false,true,skip,锁挡住,记得检查下 visit 该锁是否还在
+2,close,27,1,5,9,path,0,true,false,false,remove,
+2,close,27,4,5,4,alchemy_lab,1,false,true,false,downgrade,cut vertex 在 0.5 应降级为 path
