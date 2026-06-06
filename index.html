@@ -1362,6 +1362,13 @@
     .item-cell.active .name { color: var(--gold-bright); }
     .item-cell.active .count { color: var(--gold-glow); }
     .inv-tally { font-size: 10px; color: var(--muted); text-align: right; margin-top: 4px; }
+    /* 手牌放置:-/+ 计数按钮、armed 选中卡、神庙图可放格描边 */
+    .item-cell .cell-foot { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 3px; }
+    .inv-step { width: 20px; height: 20px; line-height: 18px; padding: 0; font-size: 14px; cursor: pointer;
+                background: #2a2113; color: var(--gold-glow); border: 1px solid var(--gold-bronze); border-radius: 4px; }
+    .inv-step:hover { background: #3a2c18; color: var(--gold-bright); }
+    .item-cell.armed { outline: 2px solid var(--gold-bright); outline-offset: 1px; box-shadow: 0 0 10px var(--gold-glow); }
+    .tile.place-target { box-shadow: inset 0 0 0 2px var(--gold-bright), 0 0 8px var(--gold-glow); cursor: pointer; }
 
     /* ===== 循环助手:行动清单面板(参 combat-v4 mockup) ===== */
     .loop-checklist .row { margin-bottom: 8px; }
@@ -1469,7 +1476,7 @@
       <!-- ===== 实战同步(combat)— 副驾驶模式 ===== -->
       <div data-view="combat">
         <div class="nextstep-bar">
-          <b>下一步</b>:点神庙格 → 选 <i>放卡 / 升级 / 贴锁</i>(在战前预演 tab 改)。close 后记录塌陷,关庙自动重抽手牌。
+          <b>下一步</b>:左栏库存 <i>−/+</i> 设手牌 → <i>点一张卡选中</i> → <i>点神庙图上描金边的格</i>放下(通路/占用/连不到链的格不可放)。升级 / 贴锁在战前预演 tab。close 后记录塌陷。
           <br><small style="opacity:0.8">每轮:抽手牌 → 应用塌陷标记 → 修关键格 → 贴锁 → 关庙</small>
           <br><small style="opacity:0.7;color:var(--amber)">⚠ 0.5 PN:Room-based 纹章(升阶 / 词条 / 重抽 / Reward 等)进庙后不可用,必须 close 前用</small>
         </div>

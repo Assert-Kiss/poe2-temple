@@ -283,6 +283,12 @@
             if (c + 1 < GRID_SIZE && canConnect(pos, { row: r, col: c + 1 })) cls.push("conn-right");
             if (r + 1 < GRID_SIZE && canConnect(pos, { row: r + 1, col: c })) cls.push("conn-down");
           }
+          // 手牌放置:armed 时,该格能落该卡(canLandHere:空/塌格+不犯链+连得到 foyer)→ 描金边
+          if (window.__loopUI && window.__loopUI.armedCard
+              && typeof window.__loopUI.canLandHere === "function"
+              && window.__loopUI.canLandHere(window.__loopUI.armedCard, pos)) {
+            cls.push("place-target");
+          }
 
           let inner = "";
           let title = `${r},${c}`;
@@ -369,6 +375,12 @@
             if (node.dataset && node.dataset.row != null) {
               window.__loopUI.cycleMark({ row: Number(node.dataset.row), col: Number(node.dataset.col) });
             }
+            return;
+          }
+          // 手牌放置:有 armed 卡 + 点的是格子(有 data-row)→ 放下并重渲染,吞掉点击(不走选格)
+          if (window.__loopUI && window.__loopUI.armedCard && node.dataset && node.dataset.row != null) {
+            window.__loopUI.placeArmedCardAt({ row: Number(node.dataset.row), col: Number(node.dataset.col) });
+            analyzeAndRender();
             return;
           }
           if (node.dataset.special === "foyer") state.selected = "foyer";
@@ -1676,6 +1688,11 @@
       toggleMarkMode: () => window.__loopUI.toggleMarkMode(),
       buildActionChecklist: (s,b) => window.__loopUI.buildActionChecklist(s,b),
       renderInventory: () => window.__loopUI.renderInventory(),
+      placeFromInventory: (id, pos) => window.__loopUI.placeFromInventory(id, pos),
+      canLandHere: (id, pos) => window.__loopUI.canLandHere(id, pos),
+      armCard: (id) => window.__loopUI.armCard(id),
+      placeArmedCardAt: (pos) => window.__loopUI.placeArmedCardAt(pos),
+      getArmedCard: () => window.__loopUI.armedCard,
       renderChecklist: () => window.__loopUI.renderChecklist(),
       renderStrategyOptions: () => window.__loopUI.renderStrategyOptions(),
       renderConnectionOverlay: () => window.__loopUI.renderConnectionOverlay(),

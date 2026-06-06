@@ -287,10 +287,16 @@
   }
 
   function itemCellHtml(kind, id, label, count) {
+    const armed = (kind === "hand" && window.__loopUI.armedCard === id) ? " armed" : "";
     const active = count > 0 ? " active" : "";
     const nameHtml = escapeAttr(label).replace(/\n/g, "<br>");
-    return `<div class="item-cell${active}" data-kind="${escapeAttr(kind)}" data-id="${escapeAttr(id)}">`
-      + `<div class="name">${nameHtml}</div><div class="count">${count}</div></div>`;
+    // −/+ 调计数(点击循环已弃);点卡身(name 区)= 选中待放置。data-act 区分按钮 vs 卡身。
+    const foot = `<div class="cell-foot">`
+      + `<button class="inv-step" data-act="dec">−</button>`
+      + `<span class="count">${count}</span>`
+      + `<button class="inv-step" data-act="inc">+</button></div>`;
+    return `<div class="item-cell${active}${armed}" data-kind="${escapeAttr(kind)}" data-id="${escapeAttr(id)}">`
+      + `<div class="name">${nameHtml}</div>${foot}</div>`;
   }
 
   function renderInventory() {
@@ -315,7 +321,7 @@
 
     container.innerHTML =
       `<div class="inv-group">`
-      + `<div class="inv-label">手牌（点格子循环 0→3）</div>`
+      + `<div class="inv-label">手牌（−/+ 调数量,点卡选中 → 点神庙格放下)</div>`
       + `<div class="item-grid">${handCells}</div>`
       + `<div class="inv-tally">合计 ${handCount}</div>`
       + `</div>`
@@ -338,26 +344,94 @@
     const kind = cell.dataset ? cell.dataset.kind : cell.getAttribute && cell.getAttribute("data-kind");
     const id = cell.dataset ? cell.dataset.id : cell.getAttribute && cell.getAttribute("data-id");
     if (!kind || !id) return;
+    const act = target && target.dataset ? target.dataset.act : null;   // dec/inc 按钮(点卡身则为 null)
 
-    // 循环上限 10(0-9),覆盖实际锁牌/手牌范围(一般 <10),
-    // 避免 %4 把真实计数(如纹章 5)截断到 2/3。
-    if (kind === "hand") {
-      state.handInventory = state.handInventory || {};
-      state.handInventory[id] = ((state.handInventory[id] || 0) + 1) % 10;
-    } else if (kind === "medallion") {
-      state.medallionPool = state.medallionPool || {};
-      state.medallionPool[id] = ((state.medallionPool[id] || 0) + 1) % 10;
+    if (act === "dec" || act === "inc") {
+      // −/+ 调计数(上限 9)。手牌计数归 0 时,若正选中该卡则取消选中。
+      const pool = kind === "medallion"
+        ? (state.medallionPool = state.medallionPool || {})
+        : (state.handInventory = state.handInventory || {});
+      const cur = pool[id] || 0;
+      pool[id] = act === "inc" ? Math.min(9, cur + 1) : Math.max(0, cur - 1);
+      if (kind === "hand" && pool[id] <= 0 && window.__loopUI.armedCard === id) window.__loopUI.armedCard = null;
+    } else if (kind === "hand") {
+      // 点卡身:选中待放置(count>0 才行,再点同卡取消);count 为 0 则不选
+      if (((state.handInventory || {})[id] || 0) > 0) armCard(id);
+      else window.__loopUI.armedCard = null;
     } else {
-      return;
+      return;   // 纹章格点身体不做事(只 −/+ 调数)
     }
 
     if (typeof window !== "undefined" && window.localStorage) {
       try { saveLoopState(window.localStorage); } catch (e) { /* 持久化失败不阻断 UI */ }
     }
-    renderInventory();
+    rerenderAll();   // 重渲染库存(armed 高亮 / 计数)+ 神庙图(可放格描边)
   }
 
   window.__loopUI.renderInventory = renderInventory;
+
+  // ── 手牌放置(点卡→点格)─────────────────────────────────────────────
+  // 把库存里一张卡放到 pos。对战态规则(与 playCard 01-core / 策略 isLandingCell / Python repair.py 同门):
+  // 只能放在 empty / destroyed 格;通路(path)/ 占用房格一律拒。成功扣 1 库存、返回 true;非法/连不通不动、返回 false。
+  // 本格能否落该卡(放置 + 可放格高亮【共用】,保证口径一致):
+  //   空/塌格 + 非 foyer + 房型不犯同链冲突(canPlaceRoom)+ 临时设为该卡后有「可达邻居」能 canConnect
+  //   到本格(=放下即连到 foyer 链)。通路/占用格、连不到链 → false。
+  //   注:canConnect 里两个 named room 仅当 ADJACENCY_RULES 允许才连(房不是随便贴就通),path/foyer 通配。
+  function canLandHere(cardId, pos) {
+    if (!cardId) return false;
+    if (isFoyerTile(pos)) return false;
+    const tile = tileAt(pos);
+    if (!tile) return false;
+    if (!(tile.content === "empty" || tile.destroyed)) return false;       // 通路/占用格不可
+    if (cardId !== "path" && !canPlaceRoom(pos, cardId).ok) return false;   // 房型同链冲突
+    const reach = reachableFromFoyer();
+    const sc = tile.content, st = tile.tier, sd = tile.destroyed;
+    tile.content = cardId; tile.tier = (cardId === "path" ? 0 : 1); tile.destroyed = false;
+    let ok = false;
+    for (const nb of adjacentInBounds(pos)) {
+      if (reach.has(tileKey(nb)) && canConnect(pos, nb)) { ok = true; break; }
+    }
+    tile.content = sc; tile.tier = st; tile.destroyed = sd;                 // 还原,不实改盘面
+    return ok;
+  }
+  window.__loopUI.canLandHere = canLandHere;
+
+  // 把库存里一张卡放到 pos。门 = canLandHere(挡通路/占用/同链冲突/连不到链),再交 placeRoom/placePath。
+  // 成功扣 1 库存、返回 true;否则不动、返回 false。与 playCard / 策略 isLandingCell / Python repair.py 同源。
+  function placeFromInventory(cardId, pos) {
+    if (((state.handInventory || {})[cardId] || 0) <= 0) return false;     // 库存没这卡
+    if (!canLandHere(cardId, pos)) return false;
+    if (cardId === "path") {
+      placePath(pos);
+    } else {
+      const r = placeRoom(pos, cardId, 1);
+      if (r && !r.ok) return false;                                        // 双保险(canLandHere 已查过)
+    }
+    autoUpgradeAll();
+    state.handInventory[cardId] = Math.max(0, (state.handInventory[cardId] || 0) - 1);
+    return true;
+  }
+  window.__loopUI.placeFromInventory = placeFromInventory;
+
+  // 当前选中待放置的卡 id(null=未选)。08-ui 网格点击劫持读取(镜像 markMode)。
+  window.__loopUI.armedCard = null;
+
+  // 选/取消选中一张卡(再点同卡取消)。返回当前 armedCard。
+  function armCard(cardId) {
+    window.__loopUI.armedCard = (window.__loopUI.armedCard === cardId) ? null : cardId;
+    return window.__loopUI.armedCard;
+  }
+  window.__loopUI.armCard = armCard;
+
+  // 把 armed 卡放到 pos(网格点击劫持调)。成功且该卡用尽 → 取消选中。返回是否放下。渲染由调用方负责。
+  function placeArmedCardAt(pos) {
+    const card = window.__loopUI.armedCard;
+    if (!card) return false;
+    const ok = placeFromInventory(card, pos);
+    if (ok && (((state.handInventory || {})[card] || 0) <= 0)) window.__loopUI.armedCard = null;
+    return ok;
+  }
+  window.__loopUI.placeArmedCardAt = placeArmedCardAt;
 
   // 用指定策略 + 蓝图模板生成行动清单数据（供 UI 渲染）。
   function buildActionChecklist(strategyKey, blueprintKey) {
