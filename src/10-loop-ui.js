@@ -406,7 +406,9 @@
     if (!keys.length) return;
     const prev = sel.value;
     sel.innerHTML = keys.map(k => `<option value="${escapeAttr(k)}">${escapeAttr(strategyLabel(k))}</option>`).join("");
+    // 默认动态最优:任意手牌都能给出具体落点;蓝图对齐对非蓝图手牌会报「无放法」(2026-06-07 bug 2)。
     if (prev && keys.includes(prev)) sel.value = prev;
+    else if (keys.includes("dynamic-optimal")) sel.value = "dynamic-optimal";
     bindGenButton();
   }
   window.__loopUI.renderStrategyOptions = renderStrategyOptions;
@@ -453,7 +455,7 @@
     if (typeof window.__loopUI.bindMarkButtons === "function") window.__loopUI.bindMarkButtons();
 
     const sel = el("loopStrategySelect");
-    const strategyKey = (sel && sel.value) || "blueprint-align";
+    const strategyKey = (sel && sel.value) || "dynamic-optimal";
 
     // 蓝图 key：优先下拉选中值 → state.lastLoadedTemplate → core-shell-cycle 兜底。
     const bpSel = el("loopBlueprintSelect");
@@ -471,8 +473,8 @@
 
     let html = "";
 
-    // 未载入蓝图提示
-    if (!loaded) {
+    // 未载入蓝图提示(仅蓝图对齐策略相关;动态最优不读蓝图,不显示该提示)
+    if (!loaded && strategyKey === "blueprint-align") {
       html += `<div class="cl-note">未载入蓝图，暂用 Plan A；可在<b>战前预演</b>载入目标布局。</div>`;
     }
 

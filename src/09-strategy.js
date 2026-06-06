@@ -105,9 +105,10 @@
   // 协同(放大器覆盖 / Generator 供能 / 升级邻接)由顺序贪心**自然吃到**——放完 Generator 后
   // 旁边 Smithy 的 place/upgrade 增量会涨,下一轮被优先选。不手写协同规则:重算 lootMult 即体现。
   //
-  // 回补:残局的 destroyed 格 + 降级来的 path 格天然是落点候选(枚举自然覆盖)。每个 place 落点
-  // 算 wouldDisconnect:断链位被塌会降级成通路(房没了路还在)→ reason 标注让用户知道要每轮补;
-  // 非断链位被塌是整删。断链位仍按即时 lootMult 增量评估(接受周期降级),delta≤0 就不建议。
+  // 回补:残局的 destroyed 格(非割点整删)是落点候选(枚举自然覆盖)。⚠ 降级来的 path 格【不是】
+  // 落点 —— 通路上不能放房(游戏规则)。每个 place 落点算 wouldDisconnect:断链位被塌会降级成
+  // **永久通路**(slot 作废、不可回补)→ reason 警告别让高价值房落断链位。非断链位被塌是整删(可回补)。
+  // 断链位仍按即时 lootMult 增量评估,delta≤0 就不建议。
   // ========================================================================
 
   // —— 工作副本机制 ——
@@ -151,17 +152,17 @@
     return totalScore(DYN_RULESET).lootMult;
   }
 
-  // 落点合法性:空格 / 塌掉(destroyed) / 降级来的 path 格 —— 这三类是 place/repair 的候选格。
-  // (path 格虽非空非 destroyed,但解包/PN 定:降级来的 path 是回补落点,placeRoom 也允许覆盖它。)
+  // 落点合法性:空格 / 塌掉(destroyed,非割点整删) —— 这两类是 place/repair 的候选格。
+  // ⚠ path 格【不可放】:游戏里通路上无法放房间(2026-06-07 用户实测确认;与 playCard / 底层
+  //   placeRoom / Python repair.py 的同款门一致)。割点被塌降级成永久通路 = 该 slot 永久作废、不可回补。
   function isLandingCell(pos) {
     if (isFoyerTile(pos)) return false;          // 入口永久锁定,不放
     const tile = tileAt(pos);
     if (!tile) return false;
     if (tile.rewardLocked) return false;          // console 房不可覆盖
-    if (tile.destroyed) return true;              // 塌掉 → 可重建(回补)
+    if (tile.destroyed) return true;              // 塌掉(整删) → 可重建(回补)
     if (tile.content === "empty") return true;    // 空格
-    if (tile.content === "path") return true;     // 降级来的 path 格(回补)
-    return false;                                  // 其它房占着 → 不能放(等塌陷清出)
+    return false;                                  // path(通路不可放房) / 其它房占着 → 不能放
   }
 
   // 试着在 pos 放 room(tier 1)并跑 autoUpgradeAll(=playCard 路径:放完立刻吃邻接升级/转换),
@@ -215,7 +216,7 @@
       for (const room of cardIds) {
         for (const pos of landings) {
           const tileBefore = tileAt(pos);
-          const isRepair = !!tileBefore && (tileBefore.destroyed || tileBefore.content === "path");
+          const isRepair = !!tileBefore && tileBefore.destroyed;   // 回补=在整删的 destroyed 格重建(path 已不是落点)
           const saved = saveCandState();
           const sim = tryPlaceAndScore(pos, room);
           let cand = null;
@@ -270,7 +271,7 @@
     const where = cand.isRepair ? "(残局空出的格)" : "";
     let reason = `${verb} ${name}${where},即时收益 ${gain},此刻增量最高`;
     if (cand.disconnects) {
-      reason += "。断链位:放这若被塌会**降级成通路**(房没了路还在),会周期降级,准备每轮补";
+      reason += "。⚠断链位:被塌会降级成**永久通路**(通路上不能再放房=这格永久作废),高价值房尽量别落断链位";
     }
     return reason;
   }

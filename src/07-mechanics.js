@@ -107,6 +107,8 @@
       if (!tile) return { ok: false, reason: "无效位置" };
       const meta = ROOM_TYPES[content];
       if (!meta) return { ok: false, reason: "未知房型" };
+      // 注:placeRoom 是【设计态原语】—— 允许覆盖 path/room(布局编辑:先 placePath 连通、再 placeRoom 改成房)。
+      // 「游戏里通路上不能放房」是【对战态规则】,由 playCard(01-core)+ 策略 isLandingCell(09)把关,不在此原语层。
       const verdict = canPlaceRoom(pos, content);
       if (!verdict.ok) return verdict;
       tile.content = content;
