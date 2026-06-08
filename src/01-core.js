@@ -1170,33 +1170,48 @@
       return true;
     }
 
+    // Generator 供能跳数上限 —— 一手对齐 EXE sub_1422F8CB0(doc/reverse-destabilise-progress.md:94-98):
+    // BFS 沿连通格 4 方向扩展,distance < generator_tier + 2(即 ≤ tier+1 跳),深度封顶 4。
+    // 旧模型用曼哈顿直线 + powerRangeByTier 是本地推断,与游戏不符(见 2026-06-08 实测器+逆向)。
     function generatorRange(tile) {
-      const meta = ROOM_TYPES[tile.content];
-      const arr = meta?.powerRangeByTier;
-      if (!Array.isArray(arr) || arr.length === 0 || tile.tier <= 0) return 0;
-      return arr[Math.min(tile.tier - 1, arr.length - 1)];
+      if (!tile || tile.content !== "generator" || (tile.tier || 0) <= 0) return 0;
+      return Math.min(tile.tier + 1, 4);   // 跳数上限(非曼哈顿半径)
     }
 
-    function poweredTiles(reachable) {
+    // 从 Generator 沿 canConnect 连通(path 导通、房按 ADJACENCY_RULES)BFS,标记 ≤ tier+1 跳内的格。
+    // 不再要求 Generator 自身 foyer 可达 —— EXE 是从格子 BFS 找邻近 Generator,供能沿走廊传播即可。
+    function generatorReachedTiles(genPos) {
+      const maxHops = generatorRange(tileAt(genPos));
+      if (maxHops <= 0) return new Set();
+      const reached = new Set([tileKey(genPos)]);
+      let frontier = [genPos];
+      for (let hop = 0; hop < maxHops && frontier.length; hop++) {
+        const next = [];
+        for (const cur of frontier) {
+          for (const nb of adjacentInBounds(cur)) {
+            const k = tileKey(nb);
+            if (reached.has(k)) continue;
+            const t = tileAt(nb);
+            if (!t || t.destroyed || t.content === "empty") continue;   // 供能沿"已填充"结构传播:房+通路都导通,空格/void 不导通(EXE 4方向邻接 bitmap,不走 canConnect/ADJACENCY_RULES)
+            reached.add(k);
+            next.push(nb);
+          }
+        }
+        frontier = next;
+      }
+      return reached;
+    }
+
+    function poweredTiles(reachable) {   // reachable 形参保留兼容;新模型从 Generator BFS,不用它
       const powered = new Set();
       const counts = new Map();
       for (let r = 0; r < GRID_SIZE; r++) for (let c = 0; c < GRID_SIZE; c++) {
         const pos = { row: r, col: c };
         const tile = tileAt(pos);
         if (tile.content !== "generator" || tile.destroyed) continue;
-        if (!reachable.has(tileKey(pos))) continue;
-        const range = generatorRange(tile);
-        if (range <= 0) continue;
-        for (let rr = 0; rr < GRID_SIZE; rr++) for (let cc = 0; cc < GRID_SIZE; cc++) {
-          const md = Math.abs(rr - r) + Math.abs(cc - c);
-          if (md <= range) {
-            const targetTile = tileAt({ row: rr, col: cc });
-            if (!targetTile.destroyed) {
-              const key = tileKey({ row: rr, col: cc });
-              powered.add(key);
-              counts.set(key, (counts.get(key) ?? 0) + 1);
-            }
-          }
+        for (const key of generatorReachedTiles(pos)) {
+          powered.add(key);
+          counts.set(key, (counts.get(key) ?? 0) + 1);
         }
       }
       powered.counts = counts;

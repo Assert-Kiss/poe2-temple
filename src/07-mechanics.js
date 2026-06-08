@@ -213,16 +213,13 @@
     // 用于 powerTier 机制:tier = 1 + min(count, maxStack)
     function countGeneratorsPoweringTile(pos, reachableSet) {
       let count = 0;
+      const pk = tileKey(pos);
       for (let r = 0; r < GRID_SIZE; r++) for (let c = 0; c < GRID_SIZE; c++) {
         const gpos = { row: r, col: c };
         const tile = tileAt(gpos);
-        if (!tile || tile.destroyed) continue;
-        if (tile.content !== "generator") continue;
-        if (reachableSet && !reachableSet.has(tileKey(gpos))) continue;
-        const range = generatorRange(tile);
-        if (range <= 0) continue;
-        const md = Math.abs(r - pos.row) + Math.abs(c - pos.col);
-        if (md <= range) count++;
+        if (!tile || tile.destroyed || tile.content !== "generator") continue;
+        // BFS 供能(sub_1422F8CB0):该 Generator 的连通辐射是否覆盖 pos(≤ tier+1 跳)。reachableSet 形参保留兼容。
+        if (generatorReachedTiles(gpos).has(pk)) count++;
       }
       return count;
     }
